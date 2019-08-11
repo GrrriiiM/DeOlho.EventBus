@@ -10,43 +10,25 @@ using RabbitMQ.Client.Exceptions;
 
 namespace DeOlho.EventBus.RabbitMQ
 {
-    public class EventBusConnectionRabbitMQ
+    public class EventBusRabbitMQConnection
     {
         readonly IConnectionFactory _connectionFactory;
-        readonly ILogger<EventBusConnectionRabbitMQ> _logger;
+        readonly ILogger<EventBusRabbitMQConnection> _logger;
         readonly int _retryCount;
         IConnection _connection;
         bool _disposed;
 
         object syncRoot = new object();
 
-        public EventBusConnectionRabbitMQ(
+        public EventBusRabbitMQConnection(
             IConnectionFactory connectionFactory,
-            ILogger<EventBusConnectionRabbitMQ> logger,
+            ILogger<EventBusRabbitMQConnection> logger,
             int retryCount = 5)
         {
             _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
-            var c =  _connectionFactory as ConnectionFactory;
-            if (c != null) c.DispatchConsumersAsync = true;
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _retryCount = retryCount;
         }
-
-        public EventBusConnectionRabbitMQ(
-            Uri uri,
-            ILogger<EventBusConnectionRabbitMQ> logger,
-            int retryCount = 5)
-        {
-            _connectionFactory = new ConnectionFactory
-            {
-                Uri = uri,
-                DispatchConsumersAsync = true
-            };
-
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-            _retryCount = retryCount;
-        }
-
 
         public bool IsConnected
         {
@@ -99,6 +81,7 @@ namespace DeOlho.EventBus.RabbitMQ
 
         public IModel CreateModel()
         {
+            EnsureConnection();
             if (!IsConnected)
             {
                 throw new InvalidOperationException("No RabbitMQ connections are available to perform this action");

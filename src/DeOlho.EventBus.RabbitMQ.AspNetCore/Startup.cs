@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
@@ -32,20 +33,13 @@ namespace DeOlho.EventBus.RabbitMQ.AspNetCore
                 c.Port = 11002;
                 c.UserName = "deolho";
                 c.Password = "deolho";
-                c.AddSubscribe<MessageTest>(_ => 
-                {
-                    throw new Exception("erro teste");
-                    System.Diagnostics.Debug.WriteLine(_.Testando);
-                    return Task.CompletedTask;
-                });
-                c.AddSubscribe<EventBusMessageFail<MessageTest>>(_ =>
-                {
-                    System.Diagnostics.Debug.WriteLine("ERRO: " + _.Message.Testando);
-                    return Task.CompletedTask;
-                });
             });
 
             services.AddHostedService<EventBusRabbitMQHostedService>();
+
+            services.AddMediatR(this.GetType());
+
+            services.AddSingleton<IServiceCollection>(sp => services);
 
             services.AddSwaggerGen(c =>
             {
@@ -55,7 +49,24 @@ namespace DeOlho.EventBus.RabbitMQ.AspNetCore
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
         }
 
-        
+        public class TestConsummerHandler : EventBusConsumerHandler<MessageTest>
+        {
+            public override Task<Unit> Handle(MessageTest message, System.Threading.CancellationToken cancellationToken)
+            {
+                System.Diagnostics.Debug.WriteLine(message.Testando);
+                throw new Exception();
+                return Unit.Task;
+            }
+        }
+
+        public class TestConsummerFailHandler : EventBusConsumerFailHandler<MessageTest>
+        {
+            public override Task<Unit> Handle(MessageTest message, string[] exceptionStack, System.Threading.CancellationToken cancellationToken)
+            {
+                System.Diagnostics.Debug.WriteLine(exceptionStack[0]);
+                return Unit.Task;
+            }
+        }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)

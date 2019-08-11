@@ -1,55 +1,51 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using DeOlho.EventBus.Abstractions;
 using DeOlho.EventBus.Manager;
+using DeOlho.EventBus.RabbitMQ.AspNetCore;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 
-namespace DeOlho.EventBus.RabbitMQ.AspNetCore
+namespace DeOlho.EventBus.RabbitMQ
 {
     public static class DependencyInjectionExtensions
     {
 
-        public static IServiceCollection AddEventBusRabbitMQ(this IServiceCollection services, Action<EventBusRabbitMQSettings> configuration)
+        public static IServiceCollection AddEventBusRabbitMQ(this IServiceCollection services, Action<EventBusRabbitMQAspNetCoreConfiguration> config)
         {
-            
-            services.AddSingleton<IEventBus>(serviceProvider => 
+            var c = new EventBusRabbitMQAspNetCoreConfiguration();
+
+            config(c);
+
+            services.AddSingleton<EventBusConfiguration>(ServiceProvider => 
             {
-
-                var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
-
-                var config = new EventBusRabbitMQSettings();
-                configuration(config);
-
-                var connectionFactory = new ConnectionFactory();
-                connectionFactory.HostName = config.HostName;
-                connectionFactory.Port = config.Port;
-                connectionFactory.UserName = config.UserName;
-                connectionFactory.Password = config.Password;
-                connectionFactory.VirtualHost = config.VirtualHost;
-
-                var eventBusConnection = new EventBusConnectionRabbitMQ(connectionFactory, loggerFactory.CreateLogger<EventBusConnectionRabbitMQ>());
-
-                var eventBusManager = new EventBusManager(loggerFactory.CreateLogger<EventBusManager>());
-
-                var eventBus = new EventBusRabbitMQ(eventBusConnection, loggerFactory.CreateLogger<EventBusRabbitMQ>(), eventBusManager);
-
-                foreach(var subscribe in config.Subscribes)
-                {
-                    subscribe.Value(eventBus);
-                }
-
-                // eventBus.Subscribe<MessageTest>(_ => 
-                // {
-                //     System.Diagnostics.Debug.WriteLine(_.Testando);
-                //     return Task.CompletedTask;
-                // });
-
-                return eventBus;
-            });
-
+                var _ = new EventBusConfiguration();
+                _.FailSuffix = c.FailSuffix ?? _.FailSuffix;
+                _.RetrySuffix = c.RetrySuffix ?? _.RetrySuffix;
+                return _;
+            })
+            .AddSingleton<EventBusRabbitMQConfiguration>(ServiceProvider => 
+            {
+                var _ = new EventBusRabbitMQConfiguration();
+                _.HostName = c.HostName ?? throw new ArgumentNullException(nameof(c.HostName));
+                _.Port = c.Port ?? throw new ArgumentNullException(nameof(c.Port));
+                _.UserName = c.UserName ?? throw new ArgumentNullException(nameof(c.UserName));
+                _.Password = c.Password ?? throw new ArgumentNullException(nameof(c.Password));
+                _.VirtualHost = c.VirtualHost ?? _.VirtualHost;
+                _.ExchangeName = c.ExchangeName ?? _.ExchangeName;
+                _.QueueName = c.QueueName ?? _.QueueName;
+                return _;
+            })
+            .AddSingleton<EventBusManager>()
+            .AddSingleton<IConnectionFactory, EventBusRabbitMQConnectionFactory>()
+            .AddSingleton<EventBusRabbitMQConnection>()
+            .AddSingleton<EventBusRabbitMQRetryConsumerStrategy>()
+            .AddSingleton<IEventBus, EventBusRabbitMQ>();
             
             return services;
         }

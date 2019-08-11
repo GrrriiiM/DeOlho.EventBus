@@ -6,33 +6,24 @@ using DeOlho.EventBus.Abstractions;
 
 namespace DeOlho.EventBus.RabbitMQ.AspNetCore
 {
-    public class EventBusRabbitMQSettings
+    public class EventBusRabbitMQAspNetCoreConfiguration
     {
 
         Dictionary<Type, Action<IEventBus>> _subscribes = new Dictionary<Type, Action<IEventBus>>();
         public IReadOnlyDictionary<Type, Action<IEventBus>> Subscribes => _subscribes;
 
         public string HostName { get; set; }
-        public int Port { get; set; }
+        public int? Port { get; set; }
         public string UserName { get; set; }
         public string Password { get; set; }
         public string VirtualHost { get; set; }
         public string QueueName { get; set; }
+        public string ExchangeName { get; set; }
+        public string RetrySuffix { get; set; }
+        public string FailSuffix { get; set; }
 
-        public EventBusRabbitMQSettings()
+        public EventBusRabbitMQAspNetCoreConfiguration()
         {
-            QueueName = Assembly.GetEntryAssembly().GetName().Name;
-            VirtualHost = "/";
         }
-
-        public void AddSubscribe<TEventBusMessage>(Func<TEventBusMessage, Task> action) where TEventBusMessage : EventBusMessage
-        {
-            if (_subscribes.ContainsKey(typeof(TEventBusMessage)))
-                throw new InvalidOperationException("Subscripe já registrado");
-
-            _subscribes.Add(typeof(TEventBusMessage), eventBus => eventBus.Subscribe<TEventBusMessage>(action));
-        }
-
-
     }
 }

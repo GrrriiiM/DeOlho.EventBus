@@ -1,21 +1,64 @@
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using DeOlho.EventBus.Abstractions;
+using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using static DeOlho.EventBus.RabbitMQ.AspNetCore.DependencyInjectionExtensions;
 
 namespace DeOlho.EventBus.RabbitMQ.AspNetCore
 {
     public class EventBusRabbitMQHostedService : IHostedService
     {
-        readonly IServiceProvider _serviceProvider;
+        readonly IMediator _mediator;
         readonly IEventBus _eventBus;
-        public EventBusRabbitMQHostedService(IServiceProvider serviceProvider, IEventBus eventBus)
+        public EventBusRabbitMQHostedService(IServiceCollection services, IMediator mediator, IEventBus eventBus)
         {
-            _serviceProvider = serviceProvider;
+            _mediator = mediator;
             _eventBus = eventBus;
+
+            var consumerTypes = services
+                .Where(_ => _.ServiceType.IsGenericType 
+                    && typeof(IRequestHandler<,>).IsAssignableFrom(_.ServiceType.GetGenericTypeDefinition())
+                    && _.ServiceType.GenericTypeArguments[0].IsGenericType
+                    && typeof(EventBusConsumer<>).IsAssignableFrom(_.ServiceType.GenericTypeArguments[0].GetGenericTypeDefinition()))
+                .Select(_ => _.ServiceType)
+                .ToList();
+
+            var consumerFailTypes = services
+                .Where(_ => _.ServiceType.IsGenericType 
+                    && typeof(IRequestHandler<,>).IsAssignableFrom(_.ServiceType.GetGenericTypeDefinition())
+                    && _.ServiceType.GenericTypeArguments[0].IsGenericType
+                    && typeof(EventBusConsumerFail<>).IsAssignableFrom(_.ServiceType.GenericTypeArguments[0].GetGenericTypeDefinition()))
+                .Select(_ => _.ServiceType)
+                .ToList();
+
+            foreach(var consumerType in consumerTypes)
+            {
+                var enventBusConsummerType = consumerType.GenericTypeArguments[0];
+                var eventBusMessageType = enventBusConsummerType.GenericTypeArguments[0];
+                _eventBus.Subscribe(eventBusMessageType, 
+                    (c, m) => 
+                    {
+                        var eventBusConsumerType = typeof(EventBusConsumer<>).MakeGenericType(eventBusMessageType);
+                        var eventBusConsumer = (IRequest)Activator.CreateInstance(eventBusConsumerType, m);
+                        return mediator.Send(eventBusConsumer);
+                    });
+            }
+
+            foreach(var consumerFailType in consumerFailTypes)
+            {
+                var enventBusConsummerType = consumerFailType.GenericTypeArguments[0];
+                var eventBusMessageType = enventBusConsummerType.GenericTypeArguments[0];
+                _eventBus.SubscribeFail(eventBusMessageType, 
+                    (c, m) => 
+                    {
+                        var eventBusConsumerType = typeof(EventBusConsumerFail<>).MakeGenericType(eventBusMessageType);
+                        var eventBusConsumer = (IRequest)Activator.CreateInstance(eventBusConsumerType, m, c.ExceptionMessageStack);
+                        return mediator.Send(eventBusConsumer);
+                    });
+            }
         }
 
         public Task StartAsync(CancellationToken cancellationToken)

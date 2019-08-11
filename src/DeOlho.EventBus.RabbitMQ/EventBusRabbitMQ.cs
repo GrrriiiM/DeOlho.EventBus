@@ -1,5 +1,7 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Text;
@@ -18,50 +20,58 @@ namespace DeOlho.EventBus.RabbitMQ
 {
     public class EventBusRabbitMQ : IEventBus
     {
-        readonly EventBusConnectionRabbitMQ _eventBusConnection;
+        readonly EventBusRabbitMQConfiguration _configuration;
+        readonly EventBusRabbitMQConnection _eventBusConnection;
         readonly ILogger<EventBusRabbitMQ> _logger;
         readonly EventBusManager _manager;
+        readonly EventBusRabbitMQRetryConsumerStrategy _retryConsumerStrategy;
         readonly string _queueName;
+        readonly string _exchangeName;
         IModel _consumerChannel;
+        int[] _retrySequence = new int[] { 1, 10 };
         int _retryCount = 5;
 
         public EventBusRabbitMQ(
-            EventBusConnectionRabbitMQ eventBusConnection,
-            ILogger<EventBusRabbitMQ> logger,
-            EventBusManager manager)
+            EventBusRabbitMQConfiguration configuration,
+            EventBusRabbitMQConnection eventBusConnection,
+            EventBusRabbitMQRetryConsumerStrategy retryConsumerStrategy,
+            EventBusManager manager,
+            ILogger<EventBusRabbitMQ> logger)
         {
-            _queueName = Assembly.GetEntryAssembly().GetName().Name;
+            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            _exchangeName = configuration.ExchangeName;
+            _queueName = configuration.QueueName;
             _eventBusConnection = eventBusConnection ?? throw new ArgumentNullException(nameof(eventBusConnection));
-            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _manager = manager ?? throw new ArgumentNullException(nameof(manager));
-            _consumerChannel = CreateConsumerChannel();
+            _retryConsumerStrategy = retryConsumerStrategy ?? throw new ArgumentNullException(nameof(retryConsumerStrategy));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        private void Manager_OnEventRemoved(object sender, string eventName)
-        {
-            _eventBusConnection.EnsureConnection();
+        // private void Manager_OnEventRemoved(object sender, string eventName)
+        // {
+        //     _eventBusConnection.EnsureConnection();
 
-            using (var channel = _eventBusConnection.CreateModel())
-            {
-                channel.QueueUnbind(
-                    _queueName,
-                    eventName,
-                    "");
+        //     using (var channel = _eventBusConnection.CreateModel())
+        //     {
+        //         channel.QueueUnbind(
+        //             _queueName,
+        //             _exchangeName,
+        //             eventName);
 
-                if (_manager.Subscriptions.Count == 0)
-                {
-                    _consumerChannel.Close();
-                }
-            }
-        }
+        //         if (_manager.Subscriptions.Count == 0)
+        //         {
+        //             _consumerChannel.Close();
+        //         }
+        //     }
+        // }
 
-        private RetryPolicy createRetryPolicy(string messageTypeName, string messageId)
+        private RetryPolicy createRetryPolicy(string eventName, string messageId)
         {
             return RetryPolicy.Handle<BrokerUnreachableException>()
                 .Or<SocketException>()
                 .WaitAndRetry(_retryCount, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)), (ex, time) =>
                 {
-                    _logger.LogWarning(ex, $"Could not publish event: {messageTypeName} ({messageId}) after {time.TotalSeconds:n1}s ({ex.Message})");
+                    _logger.LogWarning(ex, $"Could not publish event: {eventName} ({messageId}) after {time.TotalSeconds:n1}s ({ex.Message})");
                 });
         }
 
@@ -74,23 +84,19 @@ namespace DeOlho.EventBus.RabbitMQ
         {
             _eventBusConnection.EnsureConnection();
 
-            var exchangeName = EventBusManager.GetMessageExchangeName(messageType);
+            var eventName = _manager.GetEventName(messageType);
 
-            _logger.LogTrace($"Creating RabbitMQ channel to publish event: {message.MessageId} ({exchangeName})");
+            _logger.LogTrace($"Creating RabbitMQ channel to publish event: {message.MessageId} ({eventName})");
 
             using (var channel = _eventBusConnection.CreateModel())
             {
 
                 _logger.LogTrace($"Declaring RabbitMQ exchange to publish event: {message.MessageId}");
 
-                channel.ExchangeDeclare(exchange: exchangeName, type: "direct");
-
                 var messageJson = JsonConvert.SerializeObject(message);
                 var body = Encoding.UTF8.GetBytes(messageJson);
 
-                var deadLetterExchange = EventBusManager.GetMessageExchangeName(typeof(EventBusMessageFail<>).MakeGenericType(messageType));
-
-                createRetryPolicy(exchangeName, message.MessageId).Execute(() =>
+                createRetryPolicy(eventName, message.MessageId).Execute(() =>
                 {
                     var properties = channel.CreateBasicProperties();
                     properties.DeliveryMode = 2; // persistent
@@ -98,8 +104,8 @@ namespace DeOlho.EventBus.RabbitMQ
                     _logger.LogTrace($"Publishing event to RabbitMQ: {message.MessageId}");
 
                     channel.BasicPublish(
-                        exchangeName,
-                        "",
+                        exchange: _exchangeName,
+                        eventName,
                         mandatory: true,
                         basicProperties: properties,
                         body: body);
@@ -108,46 +114,52 @@ namespace DeOlho.EventBus.RabbitMQ
             }
         }
 
-        public void Subscribe(Type messageType, Func<EventBusMessage, Task> onMessage)
+        public void Subscribe(Type messageType, Func<EventBusSubscriptionContext, EventBusMessage, Task> onMessage)
         {
-            var exchangeName = EventBusManager.GetMessageExchangeName(messageType);
-
-            _logger.LogInformation($"Subscribing event {exchangeName}");
-
-            DoInternalSubscription(exchangeName);
-            _manager.AddSubscription(messageType, onMessage);
-            StartBasicConsume();
+            Subscribe(_manager.AddSubscription(messageType, onMessage));
         }
 
-        public void Subscribe<TMessage>(Func<TMessage, Task> onMessage) where TMessage : EventBusMessage
+        public void Subscribe<TMessage>(Func<EventBusSubscriptionContext, TMessage, Task> onMessage) where TMessage : EventBusMessage
         {
-            var exchangeName = EventBusManager.GetMessageExchangeName(typeof(TMessage));
-
-            _logger.LogInformation($"Subscribing event {exchangeName}");
-
-            DoInternalSubscription(exchangeName);
-            _manager.AddSubscription<TMessage>(onMessage);
-            StartBasicConsume();
+            Subscribe(_manager.AddSubscription<TMessage>(onMessage));
         }
 
+        public void SubscribeFail(Type messageType, Func<EventBusSubscriptionContext, EventBusMessage, Task> onMessage)
+        {
+            Subscribe(_manager.AddSubscription(messageType, onMessage, true));
+        }
+
+        public void SubscribeFail<TMessage>(Func<EventBusSubscriptionContext, TMessage, Task> onMessage) where TMessage : EventBusMessage
+        {
+            Subscribe(_manager.AddSubscription<TMessage>(onMessage, true));
+        }
+        
+        public void Subscribe(EventBusSubscription eventBusSubscription)
+        {
+            if (eventBusSubscription != null)
+            {
+                _logger.LogInformation($"Subscribing event {eventBusSubscription.SubscriptionEventName}");
+
+                DoInternalSubscription(eventBusSubscription);
+                StartBasicConsume();
+            }
+        }
         
 
-        private void DoInternalSubscription(string exchangeName)
+        private void DoInternalSubscription(EventBusSubscription subscription)
         {
-            var containsKey = _manager.HasSubscription(exchangeName);
-            if (!containsKey)
+
+            _eventBusConnection.EnsureConnection();
+
+            using (var channel = _eventBusConnection.CreateModel())
             {
-                _eventBusConnection.EnsureConnection();
+                var args = new Dictionary<string, object>();
 
-                using (var channel = _eventBusConnection.CreateModel())
-                {
-                    channel.ExchangeDeclare(exchangeName, "direct");
-
-                    channel.QueueBind(
-                        _queueName,
-                        exchangeName,
-                        "");
-                }
+                channel.QueueBind(
+                    queue: _queueName,
+                    exchange: _exchangeName,
+                    routingKey: subscription.SubscriptionEventName,
+                    args);
             }
         }
 
@@ -165,40 +177,32 @@ namespace DeOlho.EventBus.RabbitMQ
         {
             _logger.LogTrace("Starting RabbitMQ basic consume");
 
-            if (_consumerChannel != null)
+            if (_consumerChannel == null && _manager.Subscriptions.Any())
             {
+                _consumerChannel = CreateConsumerChannel();
+
                 var consumer = new AsyncEventingBasicConsumer(_consumerChannel);
 
-                consumer.Received += Consumer_Received;
+                consumer.Received += ConsumerReceived;
 
                 _consumerChannel.BasicConsume(
                     queue: _queueName,
                     autoAck: false,
                     consumer: consumer);
             }
-            else
-            {
-                _logger.LogError("StartBasicConsume can't call on _consumerChannel == null");
-            }
         }
 
-        private async Task Consumer_Received(object sender, BasicDeliverEventArgs eventArgs)
+        private async Task ConsumerReceived(object sender, BasicDeliverEventArgs eventArgs)
         {
             try
             {
-                var exchangeName = eventArgs.Exchange;
-                var message = Encoding.UTF8.GetString(eventArgs.Body);
-
-                await ProcessEvent(exchangeName, message);
-
+                await _manager.ProcessEvent(eventArgs, _logger);
                 _consumerChannel.BasicAck(eventArgs.DeliveryTag, multiple: false);
-            
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, $"----- ERROR Processing message \"{ex.Message}\"");
-
-                _consumerChannel.BasicReject(eventArgs.DeliveryTag, !eventArgs.Redelivered);
+                _retryConsumerStrategy.PublishRetry(_consumerChannel, eventArgs, ex);
+                _consumerChannel.BasicAck(eventArgs.DeliveryTag, multiple: false);
             }
             
         }
@@ -211,42 +215,29 @@ namespace DeOlho.EventBus.RabbitMQ
 
             var channel = _eventBusConnection.CreateModel();
 
-            channel.QueueDeclare(queue: _queueName,
-                                 durable: true,
-                                 exclusive: false,
-                                 autoDelete: false,
-                                 arguments: null);
-            
+            channel.QueueDeclare(
+                queue: _queueName,
+                durable: true,
+                exclusive: false,
+                autoDelete: false,
+                arguments: new Dictionary<string, object> { 
+                    //{ "x-dead-letter-exchange" , _exchangeName } 
+                });
+
+            _retryConsumerStrategy.CreateExchangeAndQueueForRetryStrategy(channel, _exchangeName);
+
             channel.CallbackException += (sender, ea) =>
             {
                 if (!(ea.Exception is InvalidOperationException))
                 {
                     _logger.LogWarning(ea.Exception, "Recreating RabbitMQ consumer channel");
-
                     _consumerChannel.Dispose();
-                    _consumerChannel = CreateConsumerChannel();
+                    _consumerChannel = null;
                     StartBasicConsume();
                 }
             };
 
             return channel;
-        }
-
-        private async Task ProcessEvent(string exchangeName, string messageJson)
-        {
-            _logger.LogTrace("Processing RabbitMQ event: {EventName}", exchangeName);
-
-            if (_manager.HasSubscription(exchangeName))
-            {
-                
-                var subscription = _manager.GetSubscription(exchangeName);
-                var message = (EventBusMessage)JsonConvert.DeserializeObject(messageJson, subscription.MessageType);
-                await subscription.OnMessage(message);
-            }
-            else
-            {
-                _logger.LogWarning($"No subscription for RabbitMQ event: {exchangeName}");
-            }
         }
 
         public void Unsubscribe<TMessage>() where TMessage : EventBusMessage

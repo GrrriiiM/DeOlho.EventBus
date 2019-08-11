@@ -8,14 +8,18 @@ namespace DeOlho.EventBus.Manager
 {
     public class EventBusManager
     {
-        
-
+        readonly EventBusConfiguration _configuration;
         readonly List<EventBusSubscription> _subscriptions;
         readonly ILogger<EventBusManager> _logger;
 
+        string _retrySuffix = "-retry";
+        string _failSuffix = "-fail";
+
         public EventBusManager(
+            EventBusConfiguration configuration,
             ILogger<EventBusManager> logger)
         {
+            _configuration = configuration;
             _logger = logger;
             _subscriptions = new List<EventBusSubscription>();
         }
@@ -24,45 +28,37 @@ namespace DeOlho.EventBus.Manager
 
         public bool HasSubscription(string messageTypeName)
         {
-            return _subscriptions.Any(_ => _.MessageTypeName == messageTypeName);
+            return _subscriptions.Any(_ => _.SubscriptionEventName == messageTypeName);
         }
 
-        public bool HasSubscription(Type messageType)
+        public EventBusSubscription GetSubscription(string subscriptionName)
         {
-            return HasSubscription(GetMessageExchangeName(messageType));
+            return _subscriptions.SingleOrDefault(_ => _.SubscriptionEventName == subscriptionName);
         }
 
-        public bool HasSubscription<TMessage>()
+        public EventBusSubscription AddSubscription<TMessage>(Func<EventBusSubscriptionContext, TMessage, Task> onMessage, bool isSubscriptionForFail = false) where TMessage : EventBusMessage
         {
-            return HasSubscription(typeof(TMessage));
+            var subscription = new EventBusSubscription<TMessage>(this, onMessage, isSubscriptionForFail);
+            return AddSubscription(subscription);
         }
 
-        public EventBusSubscription GetSubscription(string messageTypeName)
+        public EventBusSubscription AddSubscription(Type messageType, Func<EventBusSubscriptionContext, EventBusMessage, Task> onMessage, bool isSubscriptionForFail = false)
         {
-            return _subscriptions.SingleOrDefault(_ => _.MessageTypeName == messageTypeName);
+            var subscription = new EventBusSubscription(messageType, this, onMessage, isSubscriptionForFail);
+            return AddSubscription(subscription);
         }
 
-        public void AddSubscription<TMessage>(Func<TMessage, Task> onMessage) where TMessage : EventBusMessage
+        private EventBusSubscription AddSubscription(EventBusSubscription subscription)
         {
-            if (!HasSubscription<TMessage>())
+            if (!HasSubscription(subscription.SubscriptionEventName))
             {
-                _subscriptions.Add(new EventBusSubscription<TMessage>(onMessage));
+                _subscriptions.Add(subscription);
+                return subscription;
             }
             else
             {
-                _logger.LogWarning($"Já existe uma assinatura para {typeof(TMessage).Name}");
-            }
-        }
-
-        public void AddSubscription(Type messageType, Func<EventBusMessage, Task> onMessage)
-        {
-            if (!HasSubscription(messageType))
-            {
-                _subscriptions.Add(new EventBusSubscription(messageType, onMessage));
-            }
-            else
-            {
-                _logger.LogWarning($"Já existe uma assinatura para {messageType.Name}");
+                _logger.LogWarning($"Já existe uma assinatura para {subscription.SubscriptionEventName}");
+                return null;
             }
         }
 
@@ -72,53 +68,24 @@ namespace DeOlho.EventBus.Manager
         }
 
 
-        public static string GetMessageExchangeName<TMessage>() where TMessage : EventBusMessage
+        public string GetEventName<TMessage>() where TMessage : EventBusMessage
         {
-            return GetMessageExchangeName(typeof(TMessage));
+            return GetEventName(typeof(TMessage));
         }
 
-        public static string GetMessageExchangeName(Type messageType)
+        public string GetEventName(Type messageType, bool isForFailSubscription = false)
         {
             if (!typeof(EventBusMessage).IsAssignableFrom(messageType))
             {
                 throw new ArgumentException(nameof(messageType));
             }
-            else if (messageType.IsGenericType && typeof(EventBusMessageFail<>).IsAssignableFrom(messageType.GetGenericTypeDefinition()))
-            {
-                return $"{messageType.GetGenericArguments()[0].FullName}_fail";
-            }
             else
             {
-                return messageType.FullName;
+                return $"{messageType.FullName}{(isForFailSubscription ? _configuration.FailSuffix : "")}";
             }
         }
+
     }
 
-    public class EventBusSubscription
-    {
-        protected readonly Func<EventBusMessage, Task> _onMessage;
-
-        public EventBusSubscription(Type messageType, Func<EventBusMessage, Task> onMessage)
-        {
-            MessageType = messageType;
-            _onMessage = onMessage;
-        }
-
-        public string MessageTypeName { get { return EventBusManager.GetMessageExchangeName(MessageType); } }
-
-        public Type MessageType { get; protected set; }
-        
-        public virtual Task OnMessage(EventBusMessage message)
-        {
-            return _onMessage(message);
-        }
-    }
-
-    public class EventBusSubscription<TMessage> : EventBusSubscription where TMessage : EventBusMessage
-    {
-        public EventBusSubscription(Func<TMessage, Task> onMessage)
-            : base(typeof(TMessage), (m) => onMessage((TMessage)m))
-        {
-        }
-    }
+    
 }
