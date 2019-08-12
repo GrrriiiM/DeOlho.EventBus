@@ -11,4 +11,8 @@
     <PackageReference Include="Microsoft.Extensions.Logging" Version="2.2.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\DeOlho.EventBus.Message\DeOlho.EventBus.Message.csproj" />
+  </ItemGroup>
+
 </Project>

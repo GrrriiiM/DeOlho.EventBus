@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading.Tasks;
 using DeOlho.EventBus.Abstractions;
 using DeOlho.EventBus.Manager;
+using DeOlho.EventBus.Message;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Polly;
@@ -20,7 +21,8 @@ namespace DeOlho.EventBus.RabbitMQ
 {
     public class EventBusRabbitMQ : IEventBus
     {
-        readonly EventBusRabbitMQConfiguration _configuration;
+        readonly EventBusConfiguration _configuration;
+        readonly EventBusRabbitMQConfiguration _rabbitmqConfiguration;
         readonly EventBusRabbitMQConnection _eventBusConnection;
         readonly ILogger<EventBusRabbitMQ> _logger;
         readonly EventBusManager _manager;
@@ -32,19 +34,32 @@ namespace DeOlho.EventBus.RabbitMQ
         int _retryCount = 5;
 
         public EventBusRabbitMQ(
-            EventBusRabbitMQConfiguration configuration,
+            EventBusConfiguration configuration,
+            EventBusRabbitMQConfiguration rabbitmqConfiguration,
             EventBusRabbitMQConnection eventBusConnection,
             EventBusRabbitMQRetryConsumerStrategy retryConsumerStrategy,
             EventBusManager manager,
             ILogger<EventBusRabbitMQ> logger)
         {
             _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            _exchangeName = configuration.ExchangeName;
-            _queueName = configuration.QueueName;
+            _rabbitmqConfiguration = rabbitmqConfiguration ?? throw new ArgumentNullException(nameof(rabbitmqConfiguration));
+            _exchangeName = rabbitmqConfiguration.ExchangeName;
+            _queueName = rabbitmqConfiguration.QueueName;
             _eventBusConnection = eventBusConnection ?? throw new ArgumentNullException(nameof(eventBusConnection));
             _manager = manager ?? throw new ArgumentNullException(nameof(manager));
             _retryConsumerStrategy = retryConsumerStrategy ?? throw new ArgumentNullException(nameof(retryConsumerStrategy));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+
+            using(var channel = _eventBusConnection.CreateModel())
+            {
+                channel.ExchangeDeclare(
+                    exchange: _exchangeName, 
+                    type: ExchangeType.Direct,
+                    arguments: new Dictionary<string, object>()
+                    {
+                        { "x-dead-letter-exchange", $"{_exchangeName}{_configuration.FailSuffix}"  }
+                    });
+            }
         }
 
         // private void Manager_OnEventRemoved(object sender, string eventName)

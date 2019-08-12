@@ -1,7 +1,7 @@
 using System;
 using System.Reflection;
 
-namespace DeOlho.EventBus
+namespace DeOlho.EventBus.Message
 {
     public class EventBusMessage
     {

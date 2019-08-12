@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using DeOlho.EventBus.Manager;
+using DeOlho.EventBus.Message;
 
 namespace DeOlho.EventBus.Abstractions
 {

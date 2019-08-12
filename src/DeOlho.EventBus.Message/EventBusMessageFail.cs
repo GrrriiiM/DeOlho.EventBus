@@ -1,6 +1,6 @@
 using System;
 
-namespace DeOlho.EventBus
+namespace DeOlho.EventBus.Message
 {
     public class EventBusMessageFail<TEventBusMessage> : EventBusMessage where TEventBusMessage : EventBusMessage
     {

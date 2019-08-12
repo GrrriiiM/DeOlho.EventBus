@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using DeOlho.EventBus.Message;
 using Microsoft.Extensions.Logging;
 
 namespace DeOlho.EventBus.Manager
@@ -11,9 +12,6 @@ namespace DeOlho.EventBus.Manager
         readonly EventBusConfiguration _configuration;
         readonly List<EventBusSubscription> _subscriptions;
         readonly ILogger<EventBusManager> _logger;
-
-        string _retrySuffix = "-retry";
-        string _failSuffix = "-fail";
 
         public EventBusManager(
             EventBusConfiguration configuration,
