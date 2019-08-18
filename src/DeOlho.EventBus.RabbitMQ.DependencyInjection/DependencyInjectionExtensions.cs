@@ -1,35 +1,30 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
 using DeOlho.EventBus.Abstractions;
 using DeOlho.EventBus.Manager;
-using DeOlho.EventBus.RabbitMQ.AspNetCore;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 
-namespace DeOlho.EventBus.RabbitMQ
+namespace DeOlho.EventBus.RabbitMQ.DependencyInjection
 {
     public static class DependencyInjectionExtensions
     {
 
-        public static IServiceCollection AddEventBusRabbitMQ(this IServiceCollection services, Action<EventBusRabbitMQAspNetCoreConfiguration> config)
+        public static IServiceCollection AddEventBusRabbitMQ(this IServiceCollection services, Action<EventBusRabbitMQDependencyInjectionConfiguration> config)
         {
-            var c = new EventBusRabbitMQAspNetCoreConfiguration();
+            var c = new EventBusRabbitMQDependencyInjectionConfiguration();
 
             config(c);
 
-            services.AddSingleton<EventBusConfiguration>(ServiceProvider => 
+            services.AddSingleton<EventBusConfiguration>(serviceProvider => 
             {
                 var _ = new EventBusConfiguration();
                 _.FailSuffix = c.FailSuffix ?? _.FailSuffix;
                 _.RetrySuffix = c.RetrySuffix ?? _.RetrySuffix;
                 return _;
             })
-            .AddSingleton<EventBusRabbitMQConfiguration>(ServiceProvider => 
+            .AddSingleton<EventBusRabbitMQConfiguration>(serviceProvider => 
             {
                 var _ = new EventBusRabbitMQConfiguration();
                 _.HostName = c.HostName ?? throw new ArgumentNullException(nameof(c.HostName));
@@ -45,7 +40,31 @@ namespace DeOlho.EventBus.RabbitMQ
             .AddSingleton<IConnectionFactory, EventBusRabbitMQConnectionFactory>()
             .AddSingleton<EventBusRabbitMQConnection>()
             .AddSingleton<EventBusRabbitMQRetryConsumerStrategy>()
-            .AddSingleton<IEventBus, EventBusRabbitMQ>();
+            .AddSingleton<IEventBus>(serviceProvider => 
+            {
+                var eventBus = new EventBusRabbitMQ(
+                    serviceProvider.GetService<EventBusConfiguration>(),
+                    serviceProvider.GetService<EventBusRabbitMQConfiguration>(),
+                    serviceProvider.GetService<EventBusRabbitMQConnection>(),
+                    serviceProvider.GetService<EventBusRabbitMQRetryConsumerStrategy>(),
+                    serviceProvider.GetService<EventBusManager>(),
+                    serviceProvider.GetService<ILogger<EventBusRabbitMQ>>()
+                );
+
+                var mediator = serviceProvider.GetService<IMediator>();
+
+                foreach(var subscribe in c._subscribes)
+                {
+                    subscribe.Value(eventBus, mediator);
+                }
+
+                foreach(var subscribeFail in c._subscribesFail)
+                {
+                    subscribeFail.Value(eventBus, mediator);
+                }
+
+                return eventBus;
+            });
             
             return services;
         }

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\DeOlho.EventBus.RabbitMQ\DeOlho.EventBus.RabbitMQ.csproj" />
+    <ProjectReference Include="..\DeOlho.EventBus.MediatR\DeOlho.EventBus.MediatR.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+</Project>

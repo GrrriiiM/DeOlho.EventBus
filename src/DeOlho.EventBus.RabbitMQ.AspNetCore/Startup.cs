@@ -1,19 +1,15 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 using DeOlho.EventBus.MediatR;
 using DeOlho.EventBus.Message;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Swashbuckle.AspNetCore.Swagger;
+using DeOlho.EventBus.RabbitMQ.DependencyInjection;
 
 namespace DeOlho.EventBus.RabbitMQ.AspNetCore
 {
@@ -35,13 +31,10 @@ namespace DeOlho.EventBus.RabbitMQ.AspNetCore
                 c.Port = 11002;
                 c.UserName = "deolho";
                 c.Password = "deolho";
+                c.SubscribeMediatorConsumers(this.GetType().Assembly);
             });
 
-            services.AddHostedService<EventBusRabbitMQHostedService>();
-
             services.AddMediatR(this.GetType());
-
-            services.AddSingleton<IServiceCollection>(sp => services);
 
             services.AddSwaggerGen(c =>
             {

@@ -61,6 +61,7 @@ namespace DeOlho.EventBus
 
         public static List<string> GetExceptionStack(this IBasicProperties properties)
         {
+            properties.Headers = properties.Headers ?? new Dictionary<string, object>();
             if (properties.Headers.ContainsKey("exception-stack") && properties.Headers["exception-stack"] is IList)
             {
                 var exceptionStack = new List<string>();

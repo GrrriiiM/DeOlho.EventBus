@@ -73,7 +73,7 @@ namespace DeOlho.EventBus.RabbitMQ
                 var retryCount = properties.GetRetryCount();
                 
                 retryCount += 1;
-                properties.InsertExceptionStack(exception.Message);
+                properties.InsertExceptionStack(exception.ToString());
 
                 if (retryCount <= _configuration.ConsumerRetryInterval.Length)
                 {
