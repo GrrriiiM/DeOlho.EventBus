@@ -53,7 +53,7 @@ namespace DeOlho.EventBus.RabbitMQ.EventSourcing
 
                     await _dbContext.SaveChangesAsync(stoppingToken);
                 }
-                await Task.Delay(50000, stoppingToken);
+                await Task.Delay(TimeSpan.FromMinutes(5), stoppingToken);
             }
         }
     }
