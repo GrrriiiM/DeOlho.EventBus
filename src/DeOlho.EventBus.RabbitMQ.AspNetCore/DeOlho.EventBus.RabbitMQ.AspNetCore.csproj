@@ -17,6 +17,7 @@
     <ProjectReference Include="..\DeOlho.EventBus.Message\DeOlho.EventBus.Message.csproj" />
     <ProjectReference Include="..\DeOlho.EventBus.MediatR\DeOlho.EventBus.MediatR.csproj" />
     <ProjectReference Include="..\DeOlho.EventBus.RabbitMQ.DependencyInjection\DeOlho.EventBus.RabbitMQ.DependencyInjection.csproj" />
+    <ProjectReference Include="..\DeOlho.EventBus.RabbitMQ.EventSourcing\DeOlho.EventBus.RabbitMQ.EventSourcing.csproj" />
   </ItemGroup>
 
 </Project>

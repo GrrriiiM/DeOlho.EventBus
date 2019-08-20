@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using DeOlho.EventBus.Abstractions;
+using DeOlho.EventBus.RabbitMQ.EventSourcing;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DeOlho.EventBus.RabbitMQ.AspNetCore.Controllers
@@ -27,9 +29,15 @@ namespace DeOlho.EventBus.RabbitMQ.AspNetCore.Controllers
 
         // POST api/values
         [HttpPost]
-        public void Post([FromServices]IEventBus eventBus, [FromBody] string value)
+        public async Task Post([FromServices]IEventSourcingService eventSourcingService, [FromServices]EventSourcingDbContext dbContext, [FromBody] string value, CancellationToken cancellationToken)
         {
-            eventBus.Publish<MessageTest>(new MessageTest(Guid.NewGuid().ToString()) { Testando = value });
+            using(var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken))
+            {
+                await eventSourcingService.SaveEventLogAsync(new MessageTest(Guid.NewGuid().ToString()) { Testando = value }, transaction);
+                transaction.Commit();
+            }
+            
+            //eventBus.Publish<MessageTest>(new MessageTest(Guid.NewGuid().ToString()) { Testando = value });
         }
 
         // PUT api/values/5

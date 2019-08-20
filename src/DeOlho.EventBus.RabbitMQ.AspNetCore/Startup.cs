@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Swashbuckle.AspNetCore.Swagger;
 using DeOlho.EventBus.RabbitMQ.DependencyInjection;
+using Microsoft.EntityFrameworkCore;
 
 namespace DeOlho.EventBus.RabbitMQ.AspNetCore
 {
@@ -40,6 +41,14 @@ namespace DeOlho.EventBus.RabbitMQ.AspNetCore
             {
                 c.SwaggerDoc("v1", new Info { Title = "DeOlho EventBus", Version = "v1" });
             });
+
+
+            services.AddDbContext<EventSourcing.EventSourcingDbContext>(options => 
+            {
+                options.UseMySql("User Id=admin;Password=admin;Host=localhost;Database=deolho");
+            });
+
+            services.AddEventSourcing<EventSourcing.EventSourcingDbContext>();
 
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_2);
         }
