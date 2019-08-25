@@ -12,12 +12,13 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="4.0.1" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(CONFIGURATION)'=='Debug'">
     <ProjectReference Include="..\DeOlho.EventBus.RabbitMQ\DeOlho.EventBus.RabbitMQ.csproj" />
     <ProjectReference Include="..\DeOlho.EventBus.Message\DeOlho.EventBus.Message.csproj" />
     <ProjectReference Include="..\DeOlho.EventBus.MediatR\DeOlho.EventBus.MediatR.csproj" />
     <ProjectReference Include="..\DeOlho.EventBus.RabbitMQ.DependencyInjection\DeOlho.EventBus.RabbitMQ.DependencyInjection.csproj" />
-    <ProjectReference Include="..\DeOlho.EventBus.RabbitMQ.EventSourcing\DeOlho.EventBus.RabbitMQ.EventSourcing.csproj" />
+    <ProjectReference Include="..\DeOlho.EventBus.EventSourcing\DeOlho.EventBus.EventSourcing.csproj" />
   </ItemGroup>
+
 
 </Project>

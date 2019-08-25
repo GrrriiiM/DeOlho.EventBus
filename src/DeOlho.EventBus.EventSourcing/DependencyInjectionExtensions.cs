@@ -1,10 +1,10 @@
 using DeOlho.EventBus.Abstractions;
-using DeOlho.EventBus.RabbitMQ.EventSourcing;
+using DeOlho.EventBus.EventSourcing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-namespace DeOlho.EventBus.RabbitMQ
+namespace DeOlho.EventBus
 {
     public static class DependencyInjectionExtensions
     {

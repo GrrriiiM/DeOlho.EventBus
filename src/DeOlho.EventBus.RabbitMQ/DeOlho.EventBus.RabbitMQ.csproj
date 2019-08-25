@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <VersionPrefix>1.0.2</VersionPrefix>
+    <VersionPrefix>1.0.0</VersionPrefix>
   </PropertyGroup>
 
   <ItemGroup>
@@ -11,8 +11,12 @@
     <PackageReference Include="RabbitMQ.Client" Version="5.1.0" />
   </ItemGroup>
 
-  <ItemGroup>
+  <ItemGroup Condition="'$(CONFIGURATION)'=='Debug'">
     <ProjectReference Include="..\DeOlho.EventBus\DeOlho.EventBus.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(CONFIGURATION)'!='Debug'">
+    <PackageReference Include="DeOlho.EventBus" Version="1.0.0" />
   </ItemGroup>
 
 </Project>

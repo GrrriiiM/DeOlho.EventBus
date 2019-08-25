@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Migrations;
 
-namespace DeOlho.EventBus.RabbitMQ.EventSourcing.Migrations
+namespace DeOlho.EventBus.EventSourcing.Migrations
 {
     public partial class init : Migration
     {

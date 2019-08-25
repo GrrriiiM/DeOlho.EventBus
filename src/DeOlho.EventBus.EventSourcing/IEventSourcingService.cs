@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using DeOlho.EventBus.Message;
 using Microsoft.EntityFrameworkCore.Storage;
 
-namespace DeOlho.EventBus.RabbitMQ.EventSourcing
+namespace DeOlho.EventBus.EventSourcing
 {
     public interface IEventSourcingService
     {

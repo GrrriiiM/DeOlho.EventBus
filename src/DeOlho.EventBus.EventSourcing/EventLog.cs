@@ -4,7 +4,7 @@ using System.Text;
 using DeOlho.EventBus.Message;
 using Newtonsoft.Json;
 
-namespace DeOlho.EventBus.RabbitMQ.EventSourcing
+namespace DeOlho.EventBus.EventSourcing
 {
     public class EventLog
     {

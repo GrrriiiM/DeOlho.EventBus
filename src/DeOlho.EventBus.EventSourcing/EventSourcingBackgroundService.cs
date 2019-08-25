@@ -14,7 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json;
 
-namespace DeOlho.EventBus.RabbitMQ.EventSourcing
+namespace DeOlho.EventBus.EventSourcing
 {
     public class EventSourcingBackgroundService<TDbContext> : BackgroundService where TDbContext : DbContext
     {

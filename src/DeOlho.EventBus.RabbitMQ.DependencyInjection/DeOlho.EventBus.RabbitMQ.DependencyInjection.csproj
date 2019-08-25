@@ -1,12 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <ItemGroup>
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(CONFIGURATION)'=='Debug'">
     <ProjectReference Include="..\DeOlho.EventBus.RabbitMQ\DeOlho.EventBus.RabbitMQ.csproj" />
     <ProjectReference Include="..\DeOlho.EventBus.MediatR\DeOlho.EventBus.MediatR.csproj" />
   </ItemGroup>
 
-  <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
-  </PropertyGroup>
+  <ItemGroup Condition="'$(CONFIGURATION)'!='Debug'">
+    <PackageReference Include="DeOlho.EventBus.RabbitMQ" Version="1.0.0" />
+    <PackageReference Include="DeOlho.EventBus.MediatR" Version="1.0.0" />
+  </ItemGroup>
 
 </Project>

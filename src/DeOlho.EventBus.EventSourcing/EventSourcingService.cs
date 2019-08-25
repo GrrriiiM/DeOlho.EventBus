@@ -7,7 +7,7 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.EntityFrameworkCore.Storage;
 
-namespace DeOlho.EventBus.RabbitMQ.EventSourcing
+namespace DeOlho.EventBus.EventSourcing
 {
     public class EventSourcingService : IEventSourcingService
     {

@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using DeOlho.EventBus.Abstractions;
-using DeOlho.EventBus.RabbitMQ.EventSourcing;
+using DeOlho.EventBus.EventSourcing;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DeOlho.EventBus.RabbitMQ.AspNetCore.Controllers

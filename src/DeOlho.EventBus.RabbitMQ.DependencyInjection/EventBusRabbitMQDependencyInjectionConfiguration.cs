@@ -8,6 +8,7 @@ using DeOlho.EventBus.Manager;
 using DeOlho.EventBus.MediatR;
 using DeOlho.EventBus.Message;
 using MediatR;
+using Microsoft.Extensions.Configuration;
 
 namespace DeOlho.EventBus.RabbitMQ.DependencyInjection
 {
@@ -77,5 +78,19 @@ namespace DeOlho.EventBus.RabbitMQ.DependencyInjection
         public string ExchangeName { get; set; }
         public string RetrySuffix { get; set; }
         public string FailSuffix { get; set; }
+
+        public void Configuration(IConfigurationSection configuration)
+        {
+            HostName = configuration.GetValue<string>(nameof(HostName), HostName);
+            Port = configuration.GetValue<int?>(nameof(Port), Port);
+            UserName = configuration.GetValue<string>(nameof(UserName), UserName);
+            Password = configuration.GetValue<string>(nameof(Password), Password);
+            VirtualHost = configuration.GetValue<string>(nameof(VirtualHost), VirtualHost);
+            QueueName = configuration.GetValue<string>(nameof(QueueName), QueueName);
+            ExchangeName = configuration.GetValue<string>(nameof(ExchangeName), ExchangeName);
+            RetrySuffix = configuration.GetValue<string>(nameof(RetrySuffix), RetrySuffix);
+            FailSuffix = configuration.GetValue<string>(nameof(FailSuffix), FailSuffix);
+        }
+        
     }
 }

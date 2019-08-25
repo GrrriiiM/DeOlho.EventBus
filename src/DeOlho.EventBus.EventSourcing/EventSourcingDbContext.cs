@@ -1,6 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 
-namespace DeOlho.EventBus.RabbitMQ.EventSourcing
+namespace DeOlho.EventBus.EventSourcing
 {
     public class EventSourcingDbContext : DbContext
     {

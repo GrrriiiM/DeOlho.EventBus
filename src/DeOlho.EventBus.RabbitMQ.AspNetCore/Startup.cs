@@ -28,10 +28,7 @@ namespace DeOlho.EventBus.RabbitMQ.AspNetCore
         {
             services.AddEventBusRabbitMQ(c => 
             {
-                c.HostName = "localhost";
-                c.Port = 11002;
-                c.UserName = "deolho";
-                c.Password = "deolho";
+                c.Configuration(Configuration.GetSection("EventBus"));
                 c.SubscribeMediatorConsumers(this.GetType().Assembly);
             });
 
