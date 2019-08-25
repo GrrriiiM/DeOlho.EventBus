@@ -1,5 +1,5 @@
 def exec(cmd) {
-    if (Boolean.valueOf(env.UNIX)) {
+    if (isUnix()) {
         sh cmd
     }
     else {
