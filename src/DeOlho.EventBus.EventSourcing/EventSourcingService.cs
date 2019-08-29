@@ -12,22 +12,33 @@ namespace DeOlho.EventBus.EventSourcing
     public class EventSourcingService : IEventSourcingService
     {
         readonly EventSourcingDbContext _eventSourcingDbContext;
+        readonly DbContext _dbContext;
 
         public EventSourcingService(
-            DbConnection dbConnection)
+            DbContext dbContext)
         {
+            _dbContext = dbContext;
             _eventSourcingDbContext = new EventSourcingDbContext(
                 new DbContextOptionsBuilder<EventSourcingDbContext>()
-                    .UseMySql(dbConnection)
+                    .UseMySql(_dbContext.Database.GetDbConnection())
                     .ConfigureWarnings(warnings => warnings.Throw(RelationalEventId.QueryClientEvaluationWarning))
                     .Options);
         }
 
-        public Task SaveEventLogAsync(EventBusMessage message, IDbContextTransaction transaction, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task SaveEventLogAsync(EventBusMessage message, IDbContextTransaction transaction, CancellationToken cancellationToken = default(CancellationToken))
         {
-            _eventSourcingDbContext.Database.UseTransaction(transaction.GetDbTransaction());
+            if (_eventSourcingDbContext.Database.CurrentTransaction == null 
+                ||_eventSourcingDbContext.Database.CurrentTransaction.GetDbTransaction() != transaction.GetDbTransaction())
+                _eventSourcingDbContext.Database.UseTransaction(transaction.GetDbTransaction());
+
             _eventSourcingDbContext.EventLogs.Add(new EventLog(message));
-            return _eventSourcingDbContext.SaveChangesAsync(cancellationToken);
+
+            await _eventSourcingDbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task AddToDbContext(EventBusMessage message, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            await _dbContext.AddAsync(new EventLog(message));
         }
 
         public Task MigrateAsync(CancellationToken cancellationToken)

@@ -13,7 +13,7 @@ namespace DeOlho.EventBus
             services.AddScoped<IEventSourcingService>(serviceProvider => 
             {
                 return new EventSourcingService(
-                    serviceProvider.GetService<TDbContext>().Database.GetDbConnection());
+                    serviceProvider.GetService<TDbContext>());
             });
 
             services.AddHostedService<EventSourcingBackgroundService<TDbContext>>();

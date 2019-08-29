@@ -1,12 +1,14 @@
 using System;
 using DeOlho.EventBus.Abstractions;
 using DeOlho.EventBus.Manager;
+using DeOlho.EventBus.RabbitMQ;
+using DeOlho.EventBus.RabbitMQ.DependencyInjection;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RabbitMQ.Client;
 
-namespace DeOlho.EventBus.RabbitMQ.DependencyInjection
+namespace DeOlho.EventBus
 {
     public static class DependencyInjectionExtensions
     {
@@ -51,16 +53,14 @@ namespace DeOlho.EventBus.RabbitMQ.DependencyInjection
                     serviceProvider.GetService<ILogger<EventBusRabbitMQ>>()
                 );
 
-                var mediator = serviceProvider.GetService<IMediator>();
-
                 foreach(var subscribe in c._subscribes)
                 {
-                    subscribe.Value(eventBus, mediator);
+                    subscribe.Value(eventBus, serviceProvider);
                 }
 
                 foreach(var subscribeFail in c._subscribesFail)
                 {
-                    subscribeFail.Value(eventBus, mediator);
+                    subscribeFail.Value(eventBus, serviceProvider);
                 }
 
                 return eventBus;

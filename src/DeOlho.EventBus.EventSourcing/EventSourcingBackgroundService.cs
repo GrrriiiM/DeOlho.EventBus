@@ -50,7 +50,7 @@ namespace DeOlho.EventBus.EventSourcing
             {
                 foreach(var eventLog in _eventSourcingDbContext.EventLogs.Where(_ => _.Status == 0).ToList())
                 {
-                    var assembly = assemblies.FirstOrDefault(_ => _.FullName == eventLog.AssemblyName);
+                    var assembly = assemblies.FirstOrDefault(_ => _.GetName().Name == eventLog.AssemblyName);
                     if (assembly == null)
                     {
                         assembly = Assembly.Load(eventLog.AssemblyName);

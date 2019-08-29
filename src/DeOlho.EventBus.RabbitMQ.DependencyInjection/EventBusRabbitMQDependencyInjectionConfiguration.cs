@@ -15,9 +15,9 @@ namespace DeOlho.EventBus.RabbitMQ.DependencyInjection
     public class EventBusRabbitMQDependencyInjectionConfiguration
     {
 
-        internal Dictionary<Type, Action<IEventBus, IMediator>> _subscribes = new Dictionary<Type, Action<IEventBus, IMediator>>();
+        internal Dictionary<Type, Action<IEventBus, IServiceProvider>> _subscribes = new Dictionary<Type, Action<IEventBus, IServiceProvider>>();
 
-        internal Dictionary<Type, Action<IEventBus, IMediator>> _subscribesFail = new Dictionary<Type, Action<IEventBus, IMediator>>();
+        internal Dictionary<Type, Action<IEventBus, IServiceProvider>> _subscribesFail = new Dictionary<Type, Action<IEventBus, IServiceProvider>>();
 
 
         public void Subscribe<TMessage>(Func<EventBusSubscriptionContext, TMessage, Task> onMessage) where TMessage : EventBusMessage
@@ -60,12 +60,12 @@ namespace DeOlho.EventBus.RabbitMQ.DependencyInjection
 
             foreach(var consumerType in consumerTypes)
             {
-                _subscribes.Add(consumerType,  (e,m) => e.SubscribeWithMediatorConsumer(consumerType, m));
+                _subscribes.Add(consumerType,  (e, sp) => e.SubscribeWithMediatorConsumer(consumerType, sp));
             }
 
             foreach(var consumerFailType in consumerFailTypes)
             {
-                _subscribesFail.Add(consumerFailType,  (e,m) => e.SubscribeFailWithMediatorConsumer(consumerFailType, m));
+                _subscribesFail.Add(consumerFailType,  (e, sp) => e.SubscribeFailWithMediatorConsumer(consumerFailType, sp));
             }
         }
 

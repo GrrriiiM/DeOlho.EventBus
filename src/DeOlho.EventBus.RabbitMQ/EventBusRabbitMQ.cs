@@ -155,8 +155,8 @@ namespace DeOlho.EventBus.RabbitMQ
             {
                 _logger.LogInformation($"Subscribing event {eventBusSubscription.SubscriptionEventName}");
 
-                DoInternalSubscription(eventBusSubscription);
                 StartBasicConsume();
+                DoInternalSubscription(eventBusSubscription);
             }
         }
         
